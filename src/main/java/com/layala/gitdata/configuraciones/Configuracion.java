@@ -9,7 +9,7 @@ import java.util.Map;
  */
 public abstract class Configuracion {
     private final static String USUARIO = "Luis-Ayala";
-    private final static String PWD     = "kyo_1983!!";
+    private final static String PWD     = "";
     
     public final static String USUARIO_K = "USUARIO";
     public final static String PWD_K     = "PWD";
