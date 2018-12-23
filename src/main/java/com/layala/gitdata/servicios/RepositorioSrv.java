@@ -6,7 +6,6 @@ import com.layala.gitdata.entidades.Repositorio;
 import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import static com.mongodb.client.model.Filters.eq;
@@ -92,7 +91,7 @@ public class RepositorioSrv {
      * @param repositorios Lista de repositorios a insertar
      * @return Número de repositorios insertados
      */
-    public long insertarRepositorio(List<Repositorio> repositorios) {
+    public long insertarRepositorio(final List<Repositorio> repositorios) {
         if (repositorios == null || repositorios.isEmpty()) {
             throw new RuntimeException("La lista no puede ser nula o vacia");
         }

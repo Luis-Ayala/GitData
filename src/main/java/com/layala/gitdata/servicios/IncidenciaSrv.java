@@ -1,5 +1,6 @@
 package com.layala.gitdata.servicios;
 
+import com.google.gson.Gson;
 import com.layala.gitdata.configuraciones.Configuracion;
 import com.layala.gitdata.entidades.Etiqueta;
 import com.layala.gitdata.entidades.Hito;
@@ -7,9 +8,22 @@ import com.layala.gitdata.entidades.Incidencia;
 import com.layala.gitdata.entidades.PullRequest;
 import com.layala.gitdata.entidades.Repositorio;
 import com.layala.gitdata.entidades.Usuario;
+import com.mongodb.bulk.BulkWriteResult;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import static com.mongodb.client.model.Filters.eq;
+import com.mongodb.client.model.InsertOneModel;
+import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.WriteModel;
+import com.mongodb.client.result.UpdateResult;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bson.Document;
 import org.eclipse.egit.github.core.Issue;
 import org.eclipse.egit.github.core.Label;
 import org.eclipse.egit.github.core.Milestone;
@@ -17,26 +31,127 @@ import org.eclipse.egit.github.core.User;
 import org.eclipse.egit.github.core.service.IssueService;
 
 /**
+ * Clase de servicio para tratar con las incidencias
  *
  * @author Luis
  */
 public class IncidenciaSrv {
+
+    private static final Logger LOGGER = LogManager.getLogger(IncidenciaSrv.class);
     
     /**
-     * 
-     * @param repositorio
-     * @return
-     * @throws IOException 
+     * Actualiza una lista de incidencias
+     * @param incidencias Lista de incidencias
+     * @return Número de incidencias actualizadas
      */
-    public List<Incidencia> getIncidenciasPorRepositorio(Repositorio repositorio) throws IOException {
-        IssueService issueSrv = new IssueService();
-        issueSrv.getClient().setCredentials(Configuracion.getProperty("usuario"),
-                Configuracion.getProperty("password"));
+    public long actualizarIncidencia(final List<Incidencia> incidencias) {
+        if (incidencias == null || incidencias.isEmpty()) {
+            throw new IllegalArgumentException("La lista no puede ser nula o vacia");
+        }
+
+        final List<Long> resultados;
+        try (final MongoClient cliente = Configuracion.crearConexion()) {
+            final MongoDatabase mongo = cliente.getDatabase(Configuracion.getProperty("database"));
+            final MongoCollection<Document> coleccion = mongo.getCollection(Configuracion.getProperty("col_repositorios"));
+            final Gson gson = new Gson();
+            resultados = new ArrayList<>(incidencias.size());
+            incidencias.forEach((incidencia) -> {
+                final FindIterable<Document> buscado = coleccion.find(eq("incidenciaId", incidencia.getIncidenciaId()));
+                if (buscado != null && buscado.first() != null) {
+                    final UpdateResult resultado = coleccion.replaceOne(buscado.first(),
+                            Document.parse(gson.toJson(incidencia)),
+                            new ReplaceOptions().upsert(true));
+                    resultados.add(resultado.getModifiedCount());
+                }
+            });
+        }
+
+        long modificados = resultados.stream().mapToLong(Long::longValue).sum();
+        if(modificados != 0)
+            LOGGER.info("Se actualizaron las incidencias, total: " + modificados);
         
+        return modificados;
+    }
+    
+    public long actualizarIncidencia(final Incidencia incidencia) {
+        long actualizado = 0;
+        try (final MongoClient cliente = Configuracion.crearConexion()) {
+            final MongoDatabase mongo = cliente.getDatabase(Configuracion.getProperty("database"));
+            final MongoCollection<Document> coleccion = mongo.getCollection(Configuracion.getProperty("col_incidencias"));
+            final Gson gson = new Gson();
+
+            final UpdateResult resultado = coleccion.replaceOne(eq("incidenciaId", String.valueOf(incidencia.getIncidenciaId())),
+                    Document.parse(gson.toJson(incidencia)));
+            actualizado = resultado != null ? resultado.getModifiedCount() : 0L;
+        }
+        if(actualizado != 0) 
+            LOGGER.info("Se actualizó la incidencia: " + incidencia.getIncidenciaId());
+        
+        return actualizado;
+    }
+    
+    /**
+     * Inserta una lista de incidencias en mongo
+     * @param incidencias Lista de incidencias a insertar en mongo
+     * @return Número de incidencias insertadas
+     */
+    public long insertarIncidencia(final List<Incidencia> incidencias) {
+        if (incidencias == null || incidencias.isEmpty()) {
+            throw new IllegalArgumentException("La lista no puede ser nula o vacia");
+        }
+
+        final Gson gson = new Gson();
+        final List<WriteModel<Document>> documentos = new ArrayList<>(incidencias.size());
+        final BulkWriteResult resultado;
+        incidencias.stream().map((incidencia) -> gson.toJson(incidencia)).forEachOrdered((json) -> {
+            documentos.add(new InsertOneModel<>(Document.parse(json)));
+        });
+
+        try (final MongoClient cliente = Configuracion.crearConexion()) {
+            final MongoDatabase mongo = cliente.getDatabase(Configuracion.getProperty("database"));
+            final MongoCollection<Document> coleccion = mongo.getCollection(Configuracion.getProperty("col_incidencias"));
+            resultado = coleccion.bulkWrite(documentos);
+            LOGGER.info("Se insertaron las incidencias, total: " + resultado.getInsertedCount());
+        }
+
+        return Long.valueOf(resultado.getInsertedCount());
+    }
+    
+    /**
+     * Inserta una incidencia en mongo
+     * @param incidencia incidencia a insertar
+     * @return regresa el número de incidencias insertadas
+     */
+    public long insertarIncidencia(final Incidencia incidencia) {
+        final Gson gson = new Gson();
+        final String json = gson.toJson(incidencia);
+        int resultado = 0;
+        try (final MongoClient cliente = Configuracion.crearConexion()) {
+            final MongoDatabase mongo = cliente.getDatabase(Configuracion.getProperty("database"));
+            final MongoCollection<Document> coleccion = mongo.getCollection(Configuracion.getProperty("col_incidencias"));
+            Document documento = Document.parse(json);
+            coleccion.insertOne(documento);
+            resultado += 1;
+            LOGGER.info("Se insertó la incidencia: " + incidencia.getIncidenciaId());
+        }
+
+        return Long.valueOf(resultado);
+    }
+
+    /**
+     * Regresa las incidencias del repositorio que se le pasa como parámetro
+     *
+     * @param repositorio Repositorio para buscar las incidencias
+     * @return Lista de incidencias por repositorio
+     * @throws IOException
+     */
+    public List<Incidencia> getIncidenciasPorRepositorio(final Repositorio repositorio) throws IOException {
+        IssueService issueSrv = new IssueService();
+        issueSrv.getClient().setCredentials(Configuracion.getProperty("usuario"), Configuracion.getProperty("password"));
+
         Incidencia incidencia = null;
-        List<Incidencia> lista = new ArrayList<>();
-        for (Issue issue : issueSrv.getIssues(Configuracion.getProperty("usuario"), 
-                repositorio.getNombre(), null)) {
+        final List<Incidencia> lista = new ArrayList<>();
+        for (Issue issue : issueSrv.getIssues(Configuracion.getProperty("usuario"), repositorio.getNombre(), null)) {
             incidencia = new Incidencia();
             incidencia.setIncidenciaId(issue.getId());
             incidencia.setCerradaEn(issue.getClosedAt());
@@ -58,13 +173,14 @@ public class IncidenciaSrv {
         }
         return lista;
     }
-    
+
     /**
-     * 
+     * Mapea un objeto milestone a un hito
+     *
      * @param milestone
-     * @return 
+     * @return Regresa el hito del issue
      */
-    private Hito getHito(Milestone milestone) {
+    private Hito getHito(final Milestone milestone) {
         Hito hito = new Hito();
         if (milestone != null) {
             hito.setCreadoEn(milestone.getCreatedAt());
@@ -77,14 +193,14 @@ public class IncidenciaSrv {
         }
         return hito;
     }
-    
+
     /**
-     * 
-     * @param labels
-     * @return
-     * @throws NullPointerException 
+     * Mapea un objeto Label a una Etiqueta
+     *
+     * @param labels Lista de Labels
+     * @return Lista de etiquetas
      */
-    private List<Etiqueta> getEtiqueteas(List<Label> labels) throws NullPointerException {
+    private List<Etiqueta> getEtiqueteas(final List<Label> labels) {
         List<Etiqueta> etiquetas = new ArrayList<>();
         if (labels != null) {
             Etiqueta etiqueta = null;
@@ -97,13 +213,14 @@ public class IncidenciaSrv {
         }
         return etiquetas;
     }
-    
+
     /**
-     * 
+     * Mapea un objeto PullRequest de GitHub a un objeto PullRequest
+     *
      * @param pullRequest
-     * @return 
+     * @return PullRequest del sistema
      */
-    private PullRequest getPullRequest(org.eclipse.egit.github.core.PullRequest pullRequest) {
+    private PullRequest getPullRequest(final org.eclipse.egit.github.core.PullRequest pullRequest) {
         PullRequest pull = new PullRequest();
         if (pullRequest != null) {
             pull.setCerradoEn(pullRequest.getClosedAt());
@@ -124,15 +241,16 @@ public class IncidenciaSrv {
         }
         return pull;
     }
-    
+
     /**
-     * 
-     * @param user
-     * @return 
+     * Mapea un objeto User a un objeto Usuario
+     *
+     * @param user User de GitHub
+     * @return Un objeto Usuario
      */
-    private Usuario getUsuario(User user) {
+    private Usuario getUsuario(final User user) {
         Usuario usuario = new Usuario();
-        if(user != null) {
+        if (user != null) {
             usuario.setCreadoEn(user.getCreatedAt());
             usuario.setEmail(user.getEmail());
             usuario.setHtmlUrl(user.getHtmlUrl());
