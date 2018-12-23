@@ -22,6 +22,8 @@ import org.eclipse.egit.github.core.service.IssueService;
  */
 public class IncidenciaSrv {
     
+    
+    
     public List<Incidencia> getIncidenciasPorRepositorio(Repositorio repositorio) throws IOException {
         IssueService issueSrv = new IssueService();
         issueSrv.getClient().setCredentials(Configuracion.getCredenciales().get(Configuracion.USUARIO_K),
