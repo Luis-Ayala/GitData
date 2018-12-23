@@ -22,16 +22,21 @@ import org.eclipse.egit.github.core.service.IssueService;
  */
 public class IncidenciaSrv {
     
-    
-    
+    /**
+     * 
+     * @param repositorio
+     * @return
+     * @throws IOException 
+     */
     public List<Incidencia> getIncidenciasPorRepositorio(Repositorio repositorio) throws IOException {
         IssueService issueSrv = new IssueService();
-        issueSrv.getClient().setCredentials(Configuracion.getCredenciales().get(Configuracion.USUARIO_K),
-                Configuracion.getCredenciales().get(Configuracion.PWD_K));
+        issueSrv.getClient().setCredentials(Configuracion.getProperty("usuario"),
+                Configuracion.getProperty("password"));
         
         Incidencia incidencia = null;
         List<Incidencia> lista = new ArrayList<>();
-        for (Issue issue : issueSrv.getIssues(Configuracion.getCredenciales().get(Configuracion.USUARIO_K), repositorio.getNombre(), null)) {
+        for (Issue issue : issueSrv.getIssues(Configuracion.getProperty("usuario"), 
+                repositorio.getNombre(), null)) {
             incidencia = new Incidencia();
             incidencia.setIncidenciaId(issue.getId());
             incidencia.setCerradaEn(issue.getClosedAt());
@@ -54,6 +59,11 @@ public class IncidenciaSrv {
         return lista;
     }
     
+    /**
+     * 
+     * @param milestone
+     * @return 
+     */
     private Hito getHito(Milestone milestone) {
         Hito hito = new Hito();
         if (milestone != null) {
@@ -68,6 +78,12 @@ public class IncidenciaSrv {
         return hito;
     }
     
+    /**
+     * 
+     * @param labels
+     * @return
+     * @throws NullPointerException 
+     */
     private List<Etiqueta> getEtiqueteas(List<Label> labels) throws NullPointerException {
         List<Etiqueta> etiquetas = new ArrayList<>();
         if (labels != null) {
@@ -82,6 +98,11 @@ public class IncidenciaSrv {
         return etiquetas;
     }
     
+    /**
+     * 
+     * @param pullRequest
+     * @return 
+     */
     private PullRequest getPullRequest(org.eclipse.egit.github.core.PullRequest pullRequest) {
         PullRequest pull = new PullRequest();
         if (pullRequest != null) {
@@ -104,6 +125,11 @@ public class IncidenciaSrv {
         return pull;
     }
     
+    /**
+     * 
+     * @param user
+     * @return 
+     */
     private Usuario getUsuario(User user) {
         Usuario usuario = new Usuario();
         if(user != null) {

@@ -25,7 +25,6 @@ import org.eclipse.egit.github.core.service.RepositoryService;
 
 /**
  * Clase de servicio para administrar los repositorios
- *
  * @author Luis
  */
 public class RepositorioSrv {
@@ -43,7 +42,7 @@ public class RepositorioSrv {
         }
 
         final List<Long> resultados;
-        try (MongoClient cliente = Configuracion.crearConexion()) {
+        try (final MongoClient cliente = Configuracion.crearConexion()) {
             final MongoDatabase mongo = cliente.getDatabase(Configuracion.getProperty("database"));
             final MongoCollection<Document> coleccion = mongo.getCollection(Configuracion.getProperty("col_repositorios"));
             final Gson gson = new Gson();
@@ -73,7 +72,7 @@ public class RepositorioSrv {
      */
     public long actualizarRepositorio(final Repositorio repositorio) {
         long actualizado = 0;
-        try (MongoClient cliente = Configuracion.crearConexion()) {
+        try (final MongoClient cliente = Configuracion.crearConexion()) {
             final MongoDatabase mongo = cliente.getDatabase(Configuracion.getProperty("database"));
             final MongoCollection<Document> coleccion = mongo.getCollection(Configuracion.getProperty("col_repositorios"));
             final Gson gson = new Gson();
@@ -87,7 +86,12 @@ public class RepositorioSrv {
         
         return actualizado;
     }
-
+    
+    /**
+     * Inserta una lista repositorios en mongo
+     * @param repositorios Lista de repositorios a insertar
+     * @return Número de repositorios insertados
+     */
     public long insertarRepositorio(List<Repositorio> repositorios) {
         if (repositorios == null || repositorios.isEmpty()) {
             throw new RuntimeException("La lista no puede ser nula o vacia");
@@ -97,42 +101,49 @@ public class RepositorioSrv {
         final List<WriteModel<Document>> documentos = new ArrayList<>(repositorios.size());
         final BulkWriteResult resultado;
         repositorios.stream().map((repositorio) -> gson.toJson(repositorio)).forEachOrdered((json) -> {
-            final Document documento = Document.parse(json);
-            documentos.add(new InsertOneModel<>(documento));
+            documentos.add(new InsertOneModel<>(Document.parse(json)));
         });
 
-        try (MongoClient cliente = MongoClients.create("mongodb://127.0.0.1:27017")) {
-            MongoDatabase mongo = cliente.getDatabase("GitData");
-            MongoCollection<Document> coleccion = mongo.getCollection("repositorios");
+        try (final MongoClient cliente = Configuracion.crearConexion()) {
+            final MongoDatabase mongo = cliente.getDatabase(Configuracion.getProperty("database"));
+            final MongoCollection<Document> coleccion = mongo.getCollection(Configuracion.getProperty("col_repositorios"));
             resultado = coleccion.bulkWrite(documentos);
-            LOGGER.info("Se insertaron los repositorios, total: " + documentos.size());
+            LOGGER.info("Se insertaron los repositorios, total: " + resultado.getInsertedCount());
         }
 
         return Long.valueOf(resultado.getInsertedCount());
     }
-
+    
+    /**
+     * Inserta un repositorio en mongo
+     * @param repositorio Repositorio a insertar
+     * @return 1 Si se insertó el repositorio
+     */
     public long insertarRepositorio(final Repositorio repositorio) {
         final Gson gson = new Gson();
         final String json = gson.toJson(repositorio);
         final int resultado = 1;
-        try (MongoClient cliente = MongoClients.create("mongodb://127.0.0.1:27017")) {
-            MongoDatabase mongo = cliente.getDatabase("GitData");
-            MongoCollection<Document> coleccion = mongo.getCollection("repositorios");
+        try (final MongoClient cliente = Configuracion.crearConexion()) {
+            final MongoDatabase mongo = cliente.getDatabase(Configuracion.getProperty("database"));
+            final MongoCollection<Document> coleccion = mongo.getCollection(Configuracion.getProperty("col_repositorios"));
             Document documento = Document.parse(json);
             coleccion.insertOne(documento);
 
             LOGGER.info("Se insertó el repositorio: " + repositorio.getNombre());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
         }
 
         return Long.valueOf(resultado);
     }
-
+    
+    /**
+     * Regresa todos los repositorios del usuario
+     * @return Lista con los repositorios
+     * @throws IOException 
+     */
     public List<Repositorio> getRepositorios() throws IOException {
         final RepositoryService repoSrv = new RepositoryService();
-        repoSrv.getClient().setCredentials(Configuracion.getCredenciales().get(Configuracion.USUARIO_K),
-                Configuracion.getCredenciales().get(Configuracion.PWD_K));
+        repoSrv.getClient().setCredentials(Configuracion.getProperty("usuario"),
+                Configuracion.getProperty("password"));
 
         Repositorio repositorio = null;
         final List<Repositorio> lista = new ArrayList<>();
