@@ -73,6 +73,11 @@ public class IncidenciaSrv {
         return modificados;
     }
     
+    /**
+     * Actualiza una incidencia
+     * @param incidencia Incidencia a actualizar
+     * @return Número de incidencias actualizadas
+     */
     public long actualizarIncidencia(final Incidencia incidencia) {
         long actualizado = 0;
         try (final MongoClient cliente = Configuracion.crearConexion()) {

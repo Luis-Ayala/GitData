@@ -9,11 +9,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
+ * Clase de configuraciones
  * @author Luis
  */
 public final class Configuracion {
-    public static String getProperty(String llave) {
+    
+    /**
+     * Obtiene el valor de una propiedad dada de config.properties
+     * @param llave Llave de la propiedad a buscar
+     * @return El valor de la propiedad
+     */
+    public final static String getProperty(String llave) {
         final Properties prop = new Properties();
         try {
             final String archivo = "config.properties";
@@ -29,11 +35,14 @@ public final class Configuracion {
         return prop.getProperty(llave);
     }
     
-    final static public MongoClient crearConexion() {
+    /**
+     * Crea la conexion a mongo
+     * @return MongoClient
+     */
+    public final static MongoClient crearConexion() {
         final String SERVIDOR = Configuracion.getProperty("servidor");
         final String PUERTO = Configuracion.getProperty("puerto");
         final String CONEXION = new StringBuilder().append("mongodb://").append(SERVIDOR).append(":").append(PUERTO).toString();
-        
         final MongoClient cliente = MongoClients.create(CONEXION);
         return cliente;
     }
