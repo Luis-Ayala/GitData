@@ -2,6 +2,7 @@ package com.layala.gitdata.servicios;
 
 import com.google.gson.Gson;
 import com.layala.gitdata.configuraciones.Configuracion;
+import com.layala.gitdata.entidades.Comentario;
 import com.layala.gitdata.entidades.Etiqueta;
 import com.layala.gitdata.entidades.Hito;
 import com.layala.gitdata.entidades.Incidencia;
@@ -24,6 +25,7 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
+import org.eclipse.egit.github.core.Comment;
 import org.eclipse.egit.github.core.Issue;
 import org.eclipse.egit.github.core.Label;
 import org.eclipse.egit.github.core.Milestone;
@@ -151,18 +153,17 @@ public class IncidenciaSrv {
      * @throws IOException
      */
     public List<Incidencia> getIncidenciasPorRepositorio(final Repositorio repositorio) throws IOException {
-        IssueService issueSrv = new IssueService();
+        final IssueService issueSrv = new IssueService();
         issueSrv.getClient().setCredentials(Configuracion.getProperty("usuario"), Configuracion.getProperty("password"));
 
-        Incidencia incidencia = null;
         final List<Incidencia> lista = new ArrayList<>();
         for (Issue issue : issueSrv.getIssues(Configuracion.getProperty("usuario"), repositorio.getNombre(), null)) {
-            incidencia = new Incidencia();
+            final Incidencia incidencia = new Incidencia();
             incidencia.setIncidenciaId(issue.getId());
             incidencia.setCerradaEn(issue.getClosedAt());
             incidencia.setCreadaEn(issue.getCreatedAt());
             incidencia.setModificadaEn(issue.getUpdatedAt());
-            incidencia.setComentarios(issue.getComments());
+            incidencia.setNumComentarios(issue.getComments());
             incidencia.setCuerpo(issue.getBody());
             incidencia.setHtmlUrl(issue.getHtmlUrl());
             incidencia.setUrl(issue.getUrl());
@@ -174,7 +175,8 @@ public class IncidenciaSrv {
             incidencia.setUsuario(getUsuario(issue.getUser()));
             incidencia.setAsignadoA(getUsuario(issue.getAssignee()));
             incidencia.setRepositorio(repositorio);
-            lista.add(incidencia);
+            incidencia.setComentarios(getComentarios(issueSrv, repositorio, issue));
+            lista.add(incidencia); 
         }
         return lista;
     }
@@ -264,5 +266,32 @@ public class IncidenciaSrv {
             usuario.setUsuarioId(user.getId());
         }
         return usuario;
+    }
+    
+    /**
+     * Regresa la lista de comentarios de la incidencias
+     * @param repositorio Repositorio a la cual pertenece la incidencia
+     * @param issue Incidencia de la cual se quiere saber los comentarios
+     * @return Lista de comentarios de la incidencia
+     * @throws IOException 
+     */
+    private List<Comentario> getComentarios(final IssueService issueSrv, final Repositorio repositorio, final Issue issue) throws IOException {
+        final List<Comment> comentarios = issueSrv.getComments(Configuracion.getProperty("usuario"), repositorio.getNombre(), issue.getNumber());
+        final List<Comentario> lista = (comentarios != null && !comentarios.isEmpty()) ? new ArrayList<>(comentarios.size()) : new ArrayList<>(0);
+        if(comentarios != null && !comentarios.isEmpty()) {
+            comentarios.stream().forEach(comment -> {
+                final Comentario comentario = new Comentario();
+                comentario.setCreadoEn(comment.getCreatedAt());
+                comentario.setActualizadoEn(comment.getUpdatedAt());
+                comentario.setCuerpo(comment.getBody());
+                comentario.setCuerpoHtml(comment.getBodyHtml());
+                comentario.setCuerpoTexto(comment.getBodyText());
+                comentario.setComentarioId(comment.getId());
+                comentario.setUrl(comment.getUrl());
+                comentario.setUsuario(getUsuario(comment.getUser()));
+                lista.add(comentario);
+            });
+        }
+        return lista;
     }
 }

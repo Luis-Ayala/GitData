@@ -12,7 +12,7 @@ public class Incidencia {
     private Date cerradaEn;
     private Date creadaEn;
     private Date modificadaEn;
-    private int comentarios;
+    private int numComentarios;
     private List<Etiqueta> etiquetas;
     private Hito hito;
     private PullRequest pullRequest;
@@ -24,6 +24,7 @@ public class Incidencia {
     private Usuario asignadoA;
     private Usuario usuario;
     private Repositorio repositorio;
+    private List<Comentario> comentarios;
 
     public long getIncidenciaId() {
         return incidenciaId;
@@ -55,14 +56,6 @@ public class Incidencia {
 
     public void setModificadaEn(Date modificadaEn) {
         this.modificadaEn = modificadaEn;
-    }
-
-    public int getComentarios() {
-        return comentarios;
-    }
-
-    public void setComentarios(int comentarios) {
-        this.comentarios = comentarios;
     }
 
     public List<Etiqueta> getEtiquetas() {
@@ -151,5 +144,21 @@ public class Incidencia {
 
     public void setRepositorio(Repositorio repositorio) {
         this.repositorio = repositorio;
+    }
+
+    public int getNumComentarios() {
+        return numComentarios;
+    }
+
+    public void setNumComentarios(int numComentarios) {
+        this.numComentarios = numComentarios;
+    }
+
+    public List<Comentario> getComentarios() {
+        return comentarios;
+    }
+
+    public void setComentarios(List<Comentario> comentarios) {
+        this.comentarios = comentarios;
     }
 }
