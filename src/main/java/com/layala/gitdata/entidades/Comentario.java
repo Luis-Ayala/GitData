@@ -1,11 +1,13 @@
 package com.layala.gitdata.entidades;
 
 import java.util.Date;
-import org.eclipse.egit.github.core.User;
 
 /**
- * Clase que representa un objeto comentario
- * @author Luis
+ * Clase que representa un objeto Comment de la API v3 de GitHub
+ * 
+ * @author Luis Ayala
+ * @version 1.0
+ * @since 1.0
  */
 public class Comentario {
     private Date creadoEn;

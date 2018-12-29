@@ -4,8 +4,11 @@ import java.util.Date;
 import java.util.List;
 
 /**
- *
+ * Clase que representa un objeto Issue de la API v3 de GitHub
+ * 
  * @author Luis Ayala
+ * @version 1.0
+ * @since 1.0
  */
 public class Incidencia {
     private long incidenciaId;

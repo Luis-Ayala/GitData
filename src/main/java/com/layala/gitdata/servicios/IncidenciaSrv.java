@@ -9,6 +9,8 @@ import com.layala.gitdata.entidades.Incidencia;
 import com.layala.gitdata.entidades.PullRequest;
 import com.layala.gitdata.entidades.Repositorio;
 import com.layala.gitdata.entidades.Usuario;
+import com.layala.gitdata.excepciones.GitDataConfigExcepcion;
+import com.layala.gitdata.excepciones.GitDataIncidenciaExcepcion;
 import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
@@ -33,22 +35,36 @@ import org.eclipse.egit.github.core.User;
 import org.eclipse.egit.github.core.service.IssueService;
 
 /**
- * Clase de servicio para tratar con las incidencias
- *
- * @author Luis
+ * Clase de servicio para tratar con las incidencias.
+ * Esta clase es la encargada de procesar las incidencias,
+ * este procesamiento consiste en recuperar las incidencias de
+ * un repositorio, actualizar e insertarlas en la base de datos.
+ * 
+ * @author Luis Ayala
+ * @version 1.0
+ * @since 1.0
  */
 public class IncidenciaSrv {
-
-    private static final Logger LOGGER = LogManager.getLogger(IncidenciaSrv.class);
     
+    private static final Logger LOGGER = LogManager.getLogger(IncidenciaSrv.class);
+
     /**
-     * Actualiza una lista de incidencias
-     * @param incidencias Lista de incidencias
+     * Actualiza las incidencias que se le pasan al método en el parámetro <code>incidencias</code> 
+     * Este método reemplaza la incidencia por completo por una nueva, si no se
+     * localiza la incidencia esta es creada.
+     * <p>
+     * La búsqueda de la incidencia en la base de datos se hace por medio del campo
+     * <code>incidenciaId</code>
+     * 
+     * @param incidencias Lista de incidencias a actualizar
      * @return Número de incidencias actualizadas
+     * @throws com.layala.gitdata.excepciones.GitDataIncidenciaExcepcion
      */
-    public long actualizarIncidencia(final List<Incidencia> incidencias) {
-        if (incidencias == null || incidencias.isEmpty()) {
-            throw new IllegalArgumentException("La lista no puede ser nula o vacia");
+    public long actualizarIncidencia(final List<Incidencia> incidencias) throws GitDataIncidenciaExcepcion {
+        LOGGER.info("Entrando al método actualizarIncidencia(final List<Incidencia> incidencias).");
+        
+        if (incidencias == null) {
+            throw new GitDataIncidenciaExcepcion("La lista no puede ser nula", new IllegalArgumentException());
         }
 
         final List<Long> resultados;
@@ -66,21 +82,33 @@ public class IncidenciaSrv {
                     resultados.add(resultado.getModifiedCount());
                 }
             });
+        } catch(Exception e) {
+            throw new GitDataIncidenciaExcepcion(e); 
         }
 
         long modificados = resultados.stream().mapToLong(Long::longValue).sum();
-        if(modificados != 0)
+        if (modificados != 0) {
             LOGGER.info("Se actualizaron las incidencias, total: " + modificados);
-        
+        }
+        LOGGER.info("Método actualizarIncidencia(final List<Incidencia> incidencias) finalizado.");
         return modificados;
     }
-    
+
     /**
-     * Actualiza una incidencia
+     * Actualiza la incidencia que se le pasa al método en el parámetro <code>incidencia</code> 
+     * Este método reemplaza la incidencia por completo por una nueva, si no se
+     * localiza la incidencia esta es creada.
+     * <p>
+     * La búsqueda de la incidencia en la base de datos se hace por medio del campo
+     * <code>incidenciaId</code>
+     *
      * @param incidencia Incidencia a actualizar
      * @return Número de incidencias actualizadas
+     * @throws com.layala.gitdata.excepciones.GitDataIncidenciaExcepcion
      */
-    public long actualizarIncidencia(final Incidencia incidencia) {
+    public long actualizarIncidencia(final Incidencia incidencia) throws GitDataIncidenciaExcepcion {
+        LOGGER.info("Entrando al método actualizarIncidencia(final Incidencia incidencia).");
+        
         long actualizado = 0;
         try (final MongoClient cliente = Configuracion.crearConexion()) {
             final MongoDatabase mongo = cliente.getDatabase(Configuracion.getProperty("database"));
@@ -90,21 +118,29 @@ public class IncidenciaSrv {
             final UpdateResult resultado = coleccion.replaceOne(eq("incidenciaId", String.valueOf(incidencia.getIncidenciaId())),
                     Document.parse(gson.toJson(incidencia)));
             actualizado = resultado != null ? resultado.getModifiedCount() : 0L;
+        }catch(Exception e) {
+            throw new GitDataIncidenciaExcepcion(e);
         }
-        if(actualizado != 0) 
-            LOGGER.info("Se actualizó la incidencia: " + incidencia.getIncidenciaId());
         
+        if (actualizado != 0) {
+            LOGGER.info("Se actualizó la incidencia: " + incidencia.getIncidenciaId());
+        }
+        LOGGER.info("Método actualizarIncidencia(final Incidencia incidencia) finalizado.");
         return actualizado;
     }
-    
+
     /**
-     * Inserta una lista de incidencias en mongo
+     * Inserta las incidencias que se le pasan al método en el parámetro <code>incidencias</code> 
+     * 
      * @param incidencias Lista de incidencias a insertar en mongo
      * @return Número de incidencias insertadas
+     * @throws com.layala.gitdata.excepciones.GitDataIncidenciaExcepcion
      */
-    public long insertarIncidencia(final List<Incidencia> incidencias) {
-        if (incidencias == null || incidencias.isEmpty()) {
-            throw new IllegalArgumentException("La lista no puede ser nula o vacia");
+    public long insertarIncidencia(final List<Incidencia> incidencias) throws GitDataIncidenciaExcepcion {
+        LOGGER.info("Entrando al método insertarIncidencia(final List<Incidencia> incidencias).");
+        
+        if (incidencias == null) {
+            throw new GitDataIncidenciaExcepcion("La lista no puede ser nula", new IllegalArgumentException());
         }
 
         final Gson gson = new Gson();
@@ -119,17 +155,23 @@ public class IncidenciaSrv {
             final MongoCollection<Document> coleccion = mongo.getCollection(Configuracion.getProperty("col_incidencias"));
             resultado = coleccion.bulkWrite(documentos);
             LOGGER.info("Se insertaron las incidencias, total: " + resultado.getInsertedCount());
+        } catch(Exception e) {
+            throw new GitDataIncidenciaExcepcion(e);
         }
-
+        LOGGER.info("Método actualizarIncidencia(final List<Incidencia> incidencias) finalizado.");
         return Long.valueOf(resultado.getInsertedCount());
     }
-    
+
     /**
-     * Inserta una incidencia en mongo
+     * Inserta la incidencia que se le pasa al método en el parámetro <code>incidencia</code> 
+     *
      * @param incidencia incidencia a insertar
      * @return regresa el número de incidencias insertadas
+     * @throws com.layala.gitdata.excepciones.GitDataIncidenciaExcepcion
      */
-    public long insertarIncidencia(final Incidencia incidencia) {
+    public long insertarIncidencia(final Incidencia incidencia) throws GitDataIncidenciaExcepcion {
+        LOGGER.info("Entrando al método insertarIncidencia(final Incidencia incidencia).");
+        
         final Gson gson = new Gson();
         final String json = gson.toJson(incidencia);
         int resultado = 0;
@@ -140,44 +182,54 @@ public class IncidenciaSrv {
             coleccion.insertOne(documento);
             resultado += 1;
             LOGGER.info("Se insertó la incidencia: " + incidencia.getIncidenciaId());
+        } catch(Exception e) {
+            throw new GitDataIncidenciaExcepcion(e);
         }
-
+        
+        LOGGER.info("Método insertarIncidencia(final Incidencia incidencia) finalizado.");
         return Long.valueOf(resultado);
     }
 
     /**
-     * Regresa las incidencias del repositorio que se le pasa como parámetro
+     * Regresa las incidencias del repositorio que se le pasa como parámetro <code>repositorio</code>
      *
      * @param repositorio Repositorio para buscar las incidencias
      * @return Lista de incidencias por repositorio
-     * @throws IOException
+     * @throws com.layala.gitdata.excepciones.GitDataIncidenciaExcepcion
      */
-    public List<Incidencia> getIncidenciasPorRepositorio(final Repositorio repositorio) throws IOException {
-        final IssueService issueSrv = new IssueService();
-        issueSrv.getClient().setCredentials(Configuracion.getProperty("usuario"), Configuracion.getProperty("password"));
-
+    public List<Incidencia> getIncidenciasPorRepositorio(final Repositorio repositorio) throws GitDataIncidenciaExcepcion {
+        LOGGER.info("Entrando al método getIncidenciasPorRepositorio(final Repositorio repositorio).");
+        
         final List<Incidencia> lista = new ArrayList<>();
-        for (Issue issue : issueSrv.getIssues(Configuracion.getProperty("usuario"), repositorio.getNombre(), null)) {
-            final Incidencia incidencia = new Incidencia();
-            incidencia.setIncidenciaId(issue.getId());
-            incidencia.setCerradaEn(issue.getClosedAt());
-            incidencia.setCreadaEn(issue.getCreatedAt());
-            incidencia.setModificadaEn(issue.getUpdatedAt());
-            incidencia.setNumComentarios(issue.getComments());
-            incidencia.setCuerpo(issue.getBody());
-            incidencia.setHtmlUrl(issue.getHtmlUrl());
-            incidencia.setUrl(issue.getUrl());
-            incidencia.setEstado(issue.getState());
-            incidencia.setTitulo(issue.getTitle());
-            incidencia.setHito(getHito(issue.getMilestone()));
-            incidencia.setEtiquetas(getEtiqueteas(issue.getLabels()));
-            incidencia.setPullRequest(getPullRequest(issue.getPullRequest()));
-            incidencia.setUsuario(getUsuario(issue.getUser()));
-            incidencia.setAsignadoA(getUsuario(issue.getAssignee()));
-            incidencia.setRepositorio(repositorio);
-            incidencia.setComentarios(getComentarios(issueSrv, repositorio, issue));
-            lista.add(incidencia); 
-        }
+        try {
+            final IssueService issueSrv = new IssueService();
+            issueSrv.getClient().setCredentials(Configuracion.getProperty("usuario"), Configuracion.getProperty("password"));
+            
+            for (Issue issue : issueSrv.getIssues(Configuracion.getProperty("usuario"), repositorio.getNombre(), null)) {
+                final Incidencia incidencia = new Incidencia();
+                incidencia.setIncidenciaId(issue.getId());
+                incidencia.setCerradaEn(issue.getClosedAt());
+                incidencia.setCreadaEn(issue.getCreatedAt());
+                incidencia.setModificadaEn(issue.getUpdatedAt());
+                incidencia.setNumComentarios(issue.getComments());
+                incidencia.setCuerpo(issue.getBody());
+                incidencia.setHtmlUrl(issue.getHtmlUrl());
+                incidencia.setUrl(issue.getUrl());
+                incidencia.setEstado(issue.getState());
+                incidencia.setTitulo(issue.getTitle());
+                incidencia.setHito(getHito(issue.getMilestone()));
+                incidencia.setEtiquetas(getEtiqueteas(issue.getLabels()));
+                incidencia.setPullRequest(getPullRequest(issue.getPullRequest()));
+                incidencia.setUsuario(getUsuario(issue.getUser()));
+                incidencia.setAsignadoA(getUsuario(issue.getAssignee()));
+                incidencia.setRepositorio(repositorio);
+                incidencia.setComentarios(getComentarios(issueSrv, repositorio, issue));
+                lista.add(incidencia);
+            }
+        } catch(Exception e) {
+            throw new GitDataIncidenciaExcepcion(e);
+        } 
+        LOGGER.info("Método getIncidenciasPorRepositorio(final Repositorio repositorio) finalizado.");
         return lista;
     }
 
@@ -185,9 +237,10 @@ public class IncidenciaSrv {
      * Mapea un objeto milestone a un hito
      *
      * @param milestone
-     * @return Regresa el hito del issue
+     * @return Regresa el hito de la incidencia
      */
     private Hito getHito(final Milestone milestone) {
+        LOGGER.info("Entrando al método getHito.");
         Hito hito = new Hito();
         if (milestone != null) {
             hito.setCreadoEn(milestone.getCreatedAt());
@@ -198,6 +251,7 @@ public class IncidenciaSrv {
             hito.setIncidenciasAbiertas(milestone.getOpenIssues());
             hito.setIncidenciasCerradas(milestone.getClosedIssues());
         }
+        LOGGER.info("Método getHito finalizado.");
         return hito;
     }
 
@@ -208,6 +262,7 @@ public class IncidenciaSrv {
      * @return Lista de etiquetas
      */
     private List<Etiqueta> getEtiqueteas(final List<Label> labels) {
+        LOGGER.info("Entrando al método getEtiqueteas.");
         List<Etiqueta> etiquetas = new ArrayList<>();
         if (labels != null) {
             Etiqueta etiqueta = null;
@@ -218,6 +273,7 @@ public class IncidenciaSrv {
                 etiquetas.add(etiqueta);
             }
         }
+        LOGGER.info("Método getEtiqueteas finalizado.");
         return etiquetas;
     }
 
@@ -228,6 +284,7 @@ public class IncidenciaSrv {
      * @return PullRequest del sistema
      */
     private PullRequest getPullRequest(final org.eclipse.egit.github.core.PullRequest pullRequest) {
+        LOGGER.info("Entrando al método getPullRequest.");
         PullRequest pull = new PullRequest();
         if (pullRequest != null) {
             pull.setCerradoEn(pullRequest.getClosedAt());
@@ -246,6 +303,7 @@ public class IncidenciaSrv {
             pull.setIncidenciaUrl(pullRequest.getIssueUrl());
             pull.setUrl(pullRequest.getUrl());
         }
+        LOGGER.info("Método getPullRequest finalizado.");
         return pull;
     }
 
@@ -256,6 +314,7 @@ public class IncidenciaSrv {
      * @return Un objeto Usuario
      */
     private Usuario getUsuario(final User user) {
+        LOGGER.info("Entrando al método getUsuario.");
         Usuario usuario = new Usuario();
         if (user != null) {
             usuario.setCreadoEn(user.getCreatedAt());
@@ -265,20 +324,24 @@ public class IncidenciaSrv {
             usuario.setUrl(user.getUrl());
             usuario.setUsuarioId(user.getId());
         }
+        LOGGER.info("Método getUsuario finalizado.");
         return usuario;
     }
-    
+
     /**
      * Regresa la lista de comentarios de la incidencias
+     *
      * @param repositorio Repositorio a la cual pertenece la incidencia
      * @param issue Incidencia de la cual se quiere saber los comentarios
      * @return Lista de comentarios de la incidencia
-     * @throws IOException 
+     * @throws IOException
+     * @throws com.layala.gitdata.excepciones.GitDataConfigExcepcion
      */
-    private List<Comentario> getComentarios(final IssueService issueSrv, final Repositorio repositorio, final Issue issue) throws IOException {
+    private List<Comentario> getComentarios(final IssueService issueSrv, final Repositorio repositorio, final Issue issue) throws IOException, GitDataConfigExcepcion {
+        LOGGER.info("Entrando al método getComentarios.");
         final List<Comment> comentarios = issueSrv.getComments(Configuracion.getProperty("usuario"), repositorio.getNombre(), issue.getNumber());
         final List<Comentario> lista = (comentarios != null && !comentarios.isEmpty()) ? new ArrayList<>(comentarios.size()) : new ArrayList<>(0);
-        if(comentarios != null && !comentarios.isEmpty()) {
+        if (comentarios != null && !comentarios.isEmpty()) {
             comentarios.stream().forEach(comment -> {
                 final Comentario comentario = new Comentario();
                 comentario.setCreadoEn(comment.getCreatedAt());
@@ -292,6 +355,7 @@ public class IncidenciaSrv {
                 lista.add(comentario);
             });
         }
+        LOGGER.info("Método getComentarios finalizado.");
         return lista;
     }
 }

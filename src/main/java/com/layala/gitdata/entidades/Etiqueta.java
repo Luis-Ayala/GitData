@@ -1,8 +1,11 @@
 package com.layala.gitdata.entidades;
 
 /**
- *
- * @author Luis
+ * Clase que representa un objeto Label de la API v3 de GitHub
+ * 
+ * @author Luis Ayala
+ * @version 1.0
+ * @since 1.0
  */
 public class Etiqueta {
     private String nombre;

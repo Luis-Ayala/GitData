@@ -3,8 +3,11 @@ package com.layala.gitdata.entidades;
 import java.util.Date;
 
 /**
- *
- * @author Luis
+ * Clase que representa un objeto User de la API v3 de GitHub
+ * 
+ * @author Luis Ayala
+ * @version 1.0
+ * @since 1.0
  */
 public class Usuario {
     private Date creadoEn;
